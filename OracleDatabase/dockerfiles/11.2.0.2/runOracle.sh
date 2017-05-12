@@ -95,6 +95,41 @@ EOF"
   moveFiles;
 }
 
+########### Create test user ############
+function createTestUser {
+  # Auto generate ORACLE TEST USER if not passed
+  export ORACLE_TEST_USER=${ORACLE_TEST_USER:-"tester"}
+  echo "ORACLE TEST USER: $ORACLE_TEST_USER";
+
+  # Auto generate ORACLE TEST PWD if not passed
+  export ORACLE_TEST_PWD=${ORACLE_TEST_PWD:-"testpwd"}
+  echo "ORACLE TEST PWD FOR ORACLE_TEST_USER: $ORACLE_TEST_PWD";
+
+ 	cat <<-EOF > create_user.sql
+				DECLARE
+				  user_exists INTEGER := 0;
+				BEGIN
+				  SELECT COUNT(1) INTO user_exists FROM dba_users WHERE username = UPPER('$ORACLE_TEST_USER');
+				  IF user_exists = 0
+				  THEN
+				    EXECUTE IMMEDIATE ('CREATE USER $ORACLE_TEST_USER IDENTIFIED BY $ORACLE_TEST_PWD');
+				    EXECUTE IMMEDIATE ('GRANT ALL PRIVILEGES TO $ORACLE_TEST_USER');
+				    EXECUTE IMMEDIATE ('GRANT SELECT ANY DICTIONARY TO $ORACLE_TEST_USER');
+				  END IF;
+				END;
+				/
+			EOF
+
+  su -p oracle -c "sqlplus / as sysdba @./create_user.sql"
+}
+
+############# Run init sql scripts (shipped) ################
+function runInitScripts {  
+  echo "Running predefined sys-init.sql & create-test-user.sql files"
+  su -p oracle -c "sqlplus / as sysdba @./sys-init.sql"  
+  su -p oracle -c "sqlplus / as sysdba @./create-test-users.sql"
+}
+
 ############# MAIN ################
 
 # Set SIGTERM handler
@@ -123,7 +158,14 @@ if [ "$?" == "0" ]; then
    fi;
    
    # Create database
-   createDB;
+   createDB;   
+
+   # Create test user
+   createTestUser;
+
+   # Run predefined sql scripts
+   runInitScripts;
+
 fi;
 
 echo "#########################"
