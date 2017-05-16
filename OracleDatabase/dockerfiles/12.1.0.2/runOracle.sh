@@ -79,6 +79,48 @@ EOF
    lsnrctl stop
 }
 
+########### Create test user ############
+function createTestUser {
+  # Auto generate ORACLE TEST USER if not passed
+  export ORACLE_TEST_USER=${ORACLE_TEST_USER:-"c##tester"}
+  echo "ORACLE TEST USER: $ORACLE_TEST_USER";
+
+  # Auto generate ORACLE TEST PWD if not passed
+  export ORACLE_TEST_PWD=${ORACLE_TEST_PWD:-"testpwd"}
+  echo "ORACLE TEST PWD FOR ORACLE_TEST_USER: $ORACLE_TEST_PWD";
+
+ 	cat <<-EOF > create-user.sql
+        ALTER SESSION SET "_ORACLE_SCRIPT"=true;  
+				DECLARE
+				  user_exists INTEGER := 0;
+				BEGIN
+				  SELECT COUNT(1) INTO user_exists FROM dba_users WHERE username = UPPER('$ORACLE_TEST_USER');
+				  IF user_exists = 0
+				  THEN
+				    EXECUTE IMMEDIATE ('CREATE USER $ORACLE_TEST_USER IDENTIFIED BY $ORACLE_TEST_PWD');
+				    EXECUTE IMMEDIATE ('GRANT ALL PRIVILEGES TO $ORACLE_TEST_USER');
+				    EXECUTE IMMEDIATE ('GRANT SELECT ANY DICTIONARY TO $ORACLE_TEST_USER');
+				  END IF;
+				END;
+				/
+        exit;
+			EOF
+
+  sqlplus / as sysdba @./create-user.sql 
+}
+
+############# Run init sql scripts (shipped) ################
+function runInitScripts {  
+  echo "Running predefined sys-init.sql & create-test-user.sql files"
+  
+  # Adding exit; for sqlplus correct execution;
+  echo "exit;" >> $ORACLE_BASE/sys-init.sql
+  echo "exit;" >> $ORACLE_BASE/create-test-users.sql
+
+  sqlplus / as sysdba @$ORACLE_BASE/sys-init.sql
+  sqlplus / as sysdba @$ORACLE_BASE/create-test-users.sql
+}
+
 ###################################
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
 ############# MAIN ################
@@ -143,6 +185,7 @@ if [ -d $ORACLE_BASE/oradata/$ORACLE_SID ]; then
    # Start database
    $ORACLE_BASE/$START_FILE;
    
+   # todo: add create user and run *.sql file
 else
    # Remove database config files, if they exist
    rm -f $ORACLE_HOME/dbs/spfile$ORACLE_SID.ora
@@ -159,9 +202,15 @@ fi;
 # Check whether database is up and running
 $ORACLE_BASE/$CHECK_DB_FILE
 if [ $? -eq 0 ]; then
-   echo "#########################"
-   echo "DATABASE IS READY TO USE!"
-   echo "#########################"
+  echo "Creating test user"
+  createTestUser;
+
+  echo "Running init scripts" 
+  runInitScripts;
+
+  echo "#########################"
+  echo "DATABASE IS READY TO USE!"
+  echo "#########################"
 else
    echo "#####################################"
    echo "########### E R R O R ###############"

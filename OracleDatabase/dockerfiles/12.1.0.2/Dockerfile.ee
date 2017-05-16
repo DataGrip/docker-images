@@ -43,7 +43,9 @@ ENV ORACLE_BASE=/opt/oracle \
     SETUP_LINUX_FILE="setupLinuxEnv.sh" \
     CHECK_SPACE_FILE="checkSpace.sh" \
     CHECK_DB_FILE="checkDBStatus.sh" \
-    INSTALL_DB_BINARIES_FILE="installDBBinaries.sh"
+    INSTALL_DB_BINARIES_FILE="installDBBinaries.sh" \
+    SYS_INIT_FILE="sys-init.sql" \
+    USER_INIT_FILE="create-test-users.sql"
 
 # Use second ENV so that variable get substituted
 ENV INSTALL_DIR=$ORACLE_BASE/install \
@@ -54,7 +56,7 @@ ENV INSTALL_DIR=$ORACLE_BASE/install \
 # Copy binaries
 # -------------
 COPY $INSTALL_FILE_1 $INSTALL_FILE_2 $INSTALL_RSP $PERL_INSTALL_FILE $SETUP_LINUX_FILE $CHECK_SPACE_FILE $INSTALL_DB_BINARIES_FILE $INSTALL_DIR/
-COPY $RUN_FILE $START_FILE $CREATE_DB_FILE $CONFIG_RSP $PWD_FILE $CHECK_DB_FILE $ORACLE_BASE/
+COPY $RUN_FILE $START_FILE $CREATE_DB_FILE $CONFIG_RSP $PWD_FILE $CHECK_DB_FILE $SYS_INIT_FILE $USER_INIT_FILE $ORACLE_BASE/
 
 RUN chmod ug+x $INSTALL_DIR/*.sh && \
     sync && \
